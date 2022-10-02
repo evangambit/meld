@@ -2,12 +2,12 @@ import http.server
 
 import json, os, sys
 
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 class MyHandler(http.server.BaseHTTPRequestHandler):
   def do_GET(self):
-    path = urlparse.urlparse(self.path)
-    params = urlparse.parse_qs(path.query)
+    path = urlparse(self.path)
+    params = parse_qs(path.query)
     if self.path == '/':
       with open('index.html', 'r') as f:
         self._send_text(f.read(), 200)
