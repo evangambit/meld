@@ -7,14 +7,6 @@ html, body {
   margin: 0;
   padding: 0;
 }
-button {
-  padding: 0.2em;
-  background-color: #333;
-  border-radius: 0.25em;
-  cursor: pointer;
-  border: none;
-  color: white;
-}
 #topbar {
   border-bottom: solid black 1px;
   display: flex;
@@ -34,7 +26,6 @@ let svg = {
   svg: (width, height, attrs={}) => {
     let rtn = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     rtn.setAttribute("viewBox", "0 0 " + width + " " + height);
-    // rtn.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     for (key in attrs) rtn.setAttribute(key, attrs[key]);
     return rtn;
   },
@@ -191,7 +182,6 @@ function range(low, high) {
 }
 
 function smooth(A, radius) {
-  const k = 2 * radius + 1;
   let S = new Float64Array(A.length);
   S[0] = A[0];
   for (let i = 1; i < A.length; ++i) {
@@ -215,8 +205,8 @@ function dir_changed() {
     graphsDiv.innerHTML = '';
     for (let metricName of r) {
       let chartContainer = document.createElement('DIV');
-      chartContainer.style.width = '480px';
-      chartContainer.style.height = '320px';
+      chartContainer.style.width = '100%';
+      chartContainer.style.height = '50vw';
       let cvs = document.createElement('CANVAS');
       chartContainer.appendChild(cvs);
       graphsDiv.appendChild(chartContainer);
@@ -229,9 +219,13 @@ function dir_changed() {
           "datasets": []
         };
         const colors = [
-          'rgb(255,  99, 132)',
-          'rgb(132, 255,  99)',
-          'rgb( 99, 132, 255)',
+          'rgb(  0,  89, 144)',
+          'rgb(220,  95,   0)',
+          'rgb(  0, 128,  24)',
+          'rgb(180,   0,   1)',
+          'rgb(116,  73, 153)',
+          'rgb(108,  56,  47)',
+          'rgb(192,  88, 158)',
         ]
         const D = Ys[0].length;
         for (let i = 0; i < D; ++i) {
@@ -248,7 +242,7 @@ function dir_changed() {
           data["datasets"].push({
             "type": "line",
             "label": name + " smoothed",
-            "data": smooth(Y, 4),
+            "data": smooth(Y, parseFloat(smoothInput.value)),
             "borderColor": color,
             "backgroundColor": color,
             "pointRadius": 0,
@@ -271,8 +265,18 @@ function dir_changed() {
   });
 }
 window.addEventListener('load', () => {
+  smoothInput.addEventListener('input', () => {
+    if (smoothInput.value < 0) {
+      smoothInput.value = 0;
+    }
+    if (smoothInput.value > 200) {
+      smoothInput.value = 200;
+    }
+    dir_changed();
+  });
   dirInput.value = 'a'
   dirInput.addEventListener('input', dir_changed);
+  refreshButton.addEventListener('click', dir_changed);
   dir_changed();
 })
 </script>
@@ -280,6 +284,8 @@ window.addEventListener('load', () => {
 <body>
 <div id="topbar">
   <input id="dirInput" type="text">
+  <input id="smoothInput" type="number" value="1" style="width:4em;">
+  <button id="refreshButton">R</button>
 </div>
 <div id="graphsDiv"></div>
 </body>
