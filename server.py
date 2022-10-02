@@ -47,9 +47,9 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
     else:
       self.wfile.write(msg)
 
-if __name__ == "__main__":
+def main(argv):
   hostName = "localhost"
-  serverPort = int(sys.argv[1])
+  serverPort = int(argv[1])
   server = http.server.HTTPServer((hostName, serverPort), MyHandler)
   print("Server started http://%s:%s" % (hostName, serverPort))
 
@@ -59,3 +59,6 @@ if __name__ == "__main__":
     pass
 
   server.server_close()
+
+if __name__ == "__main__":
+  main(sys.argv[1])
