@@ -61,4 +61,4 @@ def main(argv):
   server.server_close()
 
 if __name__ == "__main__":
-  main(sys.argv[1])
+  main(sys.argv)
