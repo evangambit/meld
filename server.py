@@ -2,7 +2,7 @@ import http.server
 
 import json, os, sys
 
-import urlparse
+from urllib.parse import urlparse
 
 class MyHandler(http.server.BaseHTTPRequestHandler):
   def do_GET(self):
