@@ -181,6 +181,18 @@ function range(low, high) {
   return r;
 }
 
+function percentile(A, p) {
+  p = Math.max(0, Math.min(1, p));
+  // stupid simple algorithm for approximate percentile.
+  // TODO: use O(n) selction algorithm
+  let B = [];
+  for (let i = 0; i < 100; ++i) {
+    B.push(A[Math.random() * A.length | 0]);
+  }
+  B.sort()
+  return B[Math.round((B.length - 1) * p)];
+}
+
 function smooth(A, radius) {
   let S = new Float64Array(A.length);
   S[0] = A[0];
@@ -230,6 +242,12 @@ function dir_changed() {
         const D = Ys[0].length;
         for (let i = 0; i < D; ++i) {
           let Y = Ys.map(a => a[i]);
+
+          if (highClipInput.value < 100) {
+            let p = percentile(Y, highClipInput.value / 100);
+            Y = Y.map(y => Math.min(y, p));
+          }
+
           let name = (D == 1 ? metricName : metricName) + ` (${i})`;
           let color = colors[i % colors.length];
           // data["datasets"].push({
@@ -277,6 +295,15 @@ window.addEventListener('load', () => {
   dirInput.value = 'a'
   dirInput.addEventListener('input', dir_changed);
   refreshButton.addEventListener('click', dir_changed);
+  highClipInput.addEventListener('change', () => {
+    if (highClipInput.value < 0) {
+      highClipInput.value = 0;
+    }
+    if (highClipInput.value > 100) {
+      highClipInput.value = 100;
+    }
+    dir_changed();
+  });
   dir_changed();
 })
 </script>
@@ -284,8 +311,19 @@ window.addEventListener('load', () => {
 <body>
 <div id="topbar">
   <input id="dirInput" type="text">
+  <div style="border-left: solid black 1px"></div>
+
+  <div>smooth</div>
   <input id="smoothInput" type="number" value="1" style="width:4em;">
-  <button id="refreshButton">R</button>
+
+  <div style="border-left: solid black 1px"></div>
+  <button id="refreshButton">Refresh</button>
+
+  <div style="border-left: solid black 1px"></div>
+
+  <div>highclip</div>
+  <input id="highClipInput" type="number" value="100" style="width:4em;">
+
 </div>
 <div id="graphsDiv"></div>
 </body>
