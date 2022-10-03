@@ -265,7 +265,7 @@ function dir_changed() {
   });
 }
 window.addEventListener('load', () => {
-  smoothInput.addEventListener('input', () => {
+  smoothInput.addEventListener('change', () => {
     if (smoothInput.value < 0) {
       smoothInput.value = 0;
     }
