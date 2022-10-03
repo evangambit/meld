@@ -232,13 +232,13 @@ function dir_changed() {
           let Y = Ys.map(a => a[i]);
           let name = (D == 1 ? metricName : metricName) + ` (${i})`;
           let color = colors[i % colors.length];
-          data["datasets"].push({
-            "type": "scatter",
-            "label": name,
-            "backgroundColor": color,
-            "borderColor": color,
-            "data": Y,
-          });
+          // data["datasets"].push({
+          //   "type": "scatter",
+          //   "label": name,
+          //   "backgroundColor": color,
+          //   "borderColor": color,
+          //   "data": Y,
+          // });
           data["datasets"].push({
             "type": "line",
             "label": name + " smoothed",
