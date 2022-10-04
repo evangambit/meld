@@ -182,147 +182,171 @@ function range(low, high) {
 }
 
 function percentile(A, p) {
-  p = Math.max(0, Math.min(1, p));
-  // stupid simple algorithm for approximate percentile.
   // TODO: use O(n) selction algorithm
-  let B = [];
-  for (let i = 0; i < 100; ++i) {
-    B.push(A[Math.random() * A.length | 0]);
-  }
-  B.sort()
-  return B[Math.round((B.length - 1) * p)];
+  A = new Float64Array(A);
+  A.sort();
+  return A[Math.round((A.length - 1) * p)];
 }
 
 function smooth(A, radius) {
-  let S = new Float64Array(A.length);
-  S[0] = A[0];
-  for (let i = 1; i < A.length; ++i) {
-    S[i] = S[i - 1] + A[i];
+  if (radius === 0) {
+    return A;
+  }
+  let S = new Float64Array(A.length + 1);
+  S[0] = 0;
+  for (let i = 0; i < A.length; ++i) {
+    S[i + 1] = S[i] + A[i];
   }
 
   let R = new Float64Array(A.length);
   for (let i = 0; i < A.length; ++i) {
-    let a = Math.max(0, i - radius - 1);
-    let b = Math.min(A.length - 1, i + radius);
+    let a = Math.max(0, i - radius);
+    let b = Math.min(A.length - 1, i + radius + 1);
     R[i] = (S[b] - S[a]) / (b - a);
   }
 
   return R;
 }
 
-function dir_changed() {
-  let dirName = dirInput.value;
-  window.fetch('./api/get_families?dir=' + dirName).then(r => r.json()).then(r => {
-    document.getElementById("dirInput").style.backgroundColor = '';
-    graphsDiv.innerHTML = '';
-    for (let metricName of r) {
+function get_metrics(dirName) {
+  return window.fetch('./api/get_runs?dir=' + encodeURIComponent(dirName))
+  .then(r => r.json())
+  .then(runNames => {
+    let runsToShow = runsInput.value.replace(/\s/g, "").split(',');
+    let runPromises = [];
+    for (let runName of runNames) {
+      if (!runsToShow.includes(runName)) {
+        continue;
+      }
+      let url = './api/get_families?dir=' + encodeURIComponent(dirName);
+      url += '&run=' + encodeURIComponent(runName);
+      runPromises.push(
+        window.fetch(url)
+        .then(r => r.json())
+        .then(metricNames => {
+          let metricPromises = [];
+          for (let metricName of metricNames) {
+            let url = './api/get_data?dir=' + encodeURIComponent(dirName);
+            url += '&run=' + encodeURIComponent(runName);
+            url += '&metric=' + encodeURIComponent(metricName);
+            metricPromises.push(window.fetch(url).then(r => r.json()));
+          }
+          return Promise.all(metricPromises);
+        })
+      );
+    }
+    return Promise.all(runPromises);
+  }).then(runs => {
+    let metrics = {};
+    for (let run of runs) {
+      for (let metric of run) {
+        if (!(metric["metricName"] in metrics)) {
+          metrics[metric["metricName"]] = [];
+        }
+        metrics[metric["metricName"]].push(metric)
+      }
+    }
+    return metrics;
+  })
+}
+
+function render() {
+  get_metrics(dirInput.value).then(metrics => {
+    graphsDiv.innerHTML = "";
+    for (let metricName in metrics) {
       let chartContainer = document.createElement('DIV');
       chartContainer.style.width = '100%';
-      chartContainer.style.height = '50vw';
+      chartContainer.style.height = '40vw';
+      chartContainer.style.marginBottom = '5em';
       let cvs = document.createElement('CANVAS');
       chartContainer.appendChild(cvs);
       graphsDiv.appendChild(chartContainer);
 
-      window.fetch('./api/get_data?dir=' + dirName + "&metric=" + metricName).then(r => r.json()).then(r => {
-        let X = r["x"];
-        let Ys = r["ys"];
-        let data = {
-          "labels": X,
-          "datasets": []
-        };
-        const colors = [
-          'rgb(  0,  89, 144)',
-          'rgb(220,  95,   0)',
-          'rgb(  0, 128,  24)',
-          'rgb(180,   0,   1)',
-          'rgb(116,  73, 153)',
-          'rgb(108,  56,  47)',
-          'rgb(192,  88, 158)',
-        ]
-        const D = Ys[0].length;
-        for (let i = 0; i < D; ++i) {
-          let Y = Ys.map(a => a[i]);
+      let data = {
+        "datasets": []
+      };
+      const colors = [
+        'rgb(  0,  89, 144)',
+        'rgb(220,  95,   0)',
+        'rgb(  0, 128,  24)',
+        'rgb(180,   0,   1)',
+        'rgb(116,  73, 153)',
+        'rgb(108,  56,  47)',
+        'rgb(192,  88, 158)',
+      ];
 
-          if (highClipInput.value < 100) {
-            let p = percentile(Y, highClipInput.value / 100);
-            Y = Y.map(y => Math.min(y, p));
-          }
+      let runNames = Object.keys(metrics[metricName]);
+      for (let i in runNames) {
+        let runName = runNames[i];
+        let run = metrics[metricName][runName];
+        let X = run["x"];
+        let Y = run["y"];
 
-          let name = (D == 1 ? metricName : metricName) + ` (${i})`;
-          let color = colors[i % colors.length];
-          // data["datasets"].push({
-          //   "type": "scatter",
-          //   "label": name,
-          //   "backgroundColor": color,
-          //   "borderColor": color,
-          //   "data": Y,
-          // });
-          data["datasets"].push({
-            "type": "line",
-            "label": name + " smoothed",
-            "data": smooth(Y, parseFloat(smoothInput.value)),
-            "borderColor": color,
-            "backgroundColor": color,
-            "pointRadius": 0,
-          });
+        Y = smooth(Y, parseFloat(smoothInput.value));
+        if (highClipInput.value < 100) {
+          let p = percentile(Y, highClipInput.value / 100);
+          Y = Y.map(y => Math.min(y, p));
         }
-        let config = {
-          "data": data,
-          "options": {
-            "animation": {
-              "duration": 0
-            }
-          },
-        };
-        let chart = new Chart(cvs, config);
-      });
+
+        let color = colors[i % colors.length];
+        data["datasets"].push({
+          "type": "line",
+          "label": run.metricName + ":" + run.runName,
+          "data": Y,
+          "borderColor": color,
+          "backgroundColor": color,
+          "pointRadius": 0,
+        });
+      }
+      data["labels"] = metrics[metricName][0]["x"];
+      let config = {
+        "data": data,
+        "options": {
+          "animation": {
+            "duration": 0
+          }
+        },
+      };
+      let chart = new Chart(cvs, config);
     }
-  }).catch(err => {
-    document.getElementById("dirInput").style.backgroundColor = 'red';
-    document.getElementById("graphsDiv").innerHTML = '';
-  });
+  })
 }
+
 window.addEventListener('load', () => {
-  smoothInput.addEventListener('change', () => {
-    if (smoothInput.value < 0) {
-      smoothInput.value = 0;
-    }
-    if (smoothInput.value > 200) {
-      smoothInput.value = 200;
-    }
-    dir_changed();
+  dirInput.value = "logs";
+  runsInput.value = "a,b";
+  smoothInput.addEventListener('input', () => {
+    smoothInput.value = Math.max(0, Math.min(500, smoothInput.value));
   });
-  dirInput.value = 'a'
-  dirInput.addEventListener('input', dir_changed);
-  refreshButton.addEventListener('click', dir_changed);
-  highClipInput.addEventListener('change', () => {
-    if (highClipInput.value < 0) {
-      highClipInput.value = 0;
-    }
-    if (highClipInput.value > 100) {
-      highClipInput.value = 100;
-    }
-    dir_changed();
+  highClipInput.addEventListener('input', () => {
+    highClipInput.value = Math.max(0, Math.min(100, highClipInput.value));
   });
-  dir_changed();
+  refreshButton.addEventListener('click', render);
+  render();
 })
 </script>
 </head>
 <body>
 <div id="topbar">
   <input id="dirInput" type="text">
+
+  <div style="border-left: solid black 1px"></div>
+
+  <input id="runsInput" type="text">
+
   <div style="border-left: solid black 1px"></div>
 
   <div>smooth</div>
   <input id="smoothInput" type="number" value="1" style="width:4em;">
 
   <div style="border-left: solid black 1px"></div>
-  <button id="refreshButton">Refresh</button>
+
+  <div>clip</div>
+  <input id="highClipInput" type="number" value="100" style="width:4em;">
 
   <div style="border-left: solid black 1px"></div>
 
-  <div>highclip</div>
-  <input id="highClipInput" type="number" value="100" style="width:4em;">
+  <button id="refreshButton">Refresh</button>
 
 </div>
 <div id="graphsDiv"></div>

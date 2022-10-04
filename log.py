@@ -6,15 +6,15 @@ class Logger:
   def __init__(self, path, logsPerWrite = 20):
     self.path = path
     if not os.path.exists(self.path):
-      os.mkdir(self.path)
+      os.makedirs(path, exist_ok=True)
     self.logsPerWrite = logsPerWrite
     self.logsSinceLastWrite = 0
     self.A = {}
 
-  def log(self, name, *args):
+  def log(self, name, x, y):
     if name not in self.A:
       self.A[name] = []
-    self.A[name].append(args)
+    self.A[name].append((x, y))
     self.logsSinceLastWrite += 1
     if self.logsSinceLastWrite >= self.logsPerWrite:
       self.write()
