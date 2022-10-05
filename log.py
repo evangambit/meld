@@ -7,7 +7,7 @@ class Logger:
     self.path = path
     if not os.path.exists(self.path):
       os.makedirs(path, exist_ok=True)
-    self.logsPerWrite = logsPerWrite
+    self._logsPerWrite = logsPerWrite
     self.logsSinceLastWrite = 0
     self.A = {}
 
@@ -16,13 +16,27 @@ class Logger:
       self.A[name] = []
     self.A[name].append((x, y))
     self.logsSinceLastWrite += 1
-    if self.logsSinceLastWrite >= self.logsPerWrite:
-      self.write()
+    if self.logsSinceLastWrite >= self._logsPerWrite:
+      self._write()
 
-  def write(self):
+  def _write(self):
     for k in self.A:
       with open(os.path.join(self.path, k), 'a+') as f:
         for a in self.A[k]:
           f.write(json.dumps(a) + "\n")
       self.A[k] = []
     self.logsSinceLastWrite = 0
+
+class LoggerFamily:
+  def __init__(self, path, logsPerWrite = 20):
+    self.path = path
+    if not os.path.exists(self.path):
+      os.makedirs(path, exist_ok=True)
+    self._logsPerWrite = logsPerWrite
+    self.logsSinceLastWrite = 0
+    self.loggers = {}
+
+  def log(self, run, name, x, y):
+    if run not in self.loggers:
+      self.loggers[run] = Logger(os.path.join(self.path, run), logsPerWrite=self._logsPerWrite)
+    self.loggers[run].log(name, x, y)
